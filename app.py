@@ -285,11 +285,11 @@ def render_detail(formula: Dict[str, str], is_new: bool = False) -> str:
 
       <script>
         (() => {{
-          const recipeId = {html.escape(repr(str(formula_id)))};
+          const recipeId = {json.dumps(str(formula_id), ensure_ascii=False)};
           const listEl = document.getElementById('comment-list');
           const formEl = document.getElementById('comment-form');
           const inputEl = document.getElementById('comment-input');
-          const endpoint = {html.escape(repr(app_url(f'/formula/{formula_id}/comment')))};
+          const endpoint = {json.dumps(app_url(f'/formula/{formula_id}/comment'), ensure_ascii=False)};
 
           if (recipeId === 'new') {{
             formEl.addEventListener('submit', (event) => event.preventDefault());
