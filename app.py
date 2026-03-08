@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import html
+import json
 import re
 import urllib.parse
 from difflib import SequenceMatcher
@@ -14,6 +15,8 @@ from typing import Dict, List, Optional
 DATA_DIR = Path("data")
 DATA_FILE = DATA_DIR / "formulas.csv"
 FIELDNAMES = ["id", "name", "content", "created_at"]
+COMMENTS_FILE = DATA_DIR / "comments.csv"
+COMMENT_FIELDNAMES = ["id", "formula_id", "content", "created_at"]
 HOST = "0.0.0.0"
 PORT = 65521
 BASE_PATH = "/12sagittarius_ghpishbc"
@@ -29,6 +32,9 @@ def ensure_data_file() -> None:
     if not DATA_FILE.exists():
         with DATA_FILE.open("w", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=FIELDNAMES).writeheader()
+    if not COMMENTS_FILE.exists():
+        with COMMENTS_FILE.open("w", newline="", encoding="utf-8") as f:
+            csv.DictWriter(f, fieldnames=COMMENT_FIELDNAMES).writeheader()
 
 
 def load_formulas() -> List[Dict[str, str]]:
@@ -37,9 +43,22 @@ def load_formulas() -> List[Dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def load_comments() -> List[Dict[str, str]]:
+    ensure_data_file()
+    with COMMENTS_FILE.open("r", newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def write_formulas(rows: List[Dict[str, str]]) -> None:
     with DATA_FILE.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_comments(rows: List[Dict[str, str]]) -> None:
+    with COMMENTS_FILE.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=COMMENT_FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
 
@@ -83,6 +102,7 @@ def delete_formula(formula_id: str) -> bool:
     if len(kept_rows) == len(rows):
         return False
     write_formulas(kept_rows)
+    delete_comments_by_formula(formula_id)
     return True
 
 
@@ -94,6 +114,36 @@ def get_formula(formula_id: str) -> Optional[Dict[str, str]]:
     return None
 
 
+def list_comments_by_formula(formula_id: str) -> List[Dict[str, str]]:
+    comments = [row for row in load_comments() if row["formula_id"] == formula_id]
+    return sorted(comments, key=lambda row: int(row["id"]))
+
+
+def add_comment(formula_id: str, content: str) -> Optional[Dict[str, str]]:
+    clean_content = content.strip()
+    if not clean_content or not get_formula(formula_id):
+        return None
+
+    comments = load_comments()
+    next_comment_id = 1 if not comments else max(int(row["id"]) for row in comments) + 1
+    row = {
+        "id": str(next_comment_id),
+        "formula_id": formula_id,
+        "content": clean_content,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    comments.append(row)
+    write_comments(comments)
+    return row
+
+
+def delete_comments_by_formula(formula_id: str) -> None:
+    rows = load_comments()
+    kept_rows = [row for row in rows if row["formula_id"] != formula_id]
+    if len(kept_rows) != len(rows):
+        write_comments(kept_rows)
+
+
 MAX_SEARCH_LENGTH = 120
 
 
@@ -103,7 +153,6 @@ def escape_all_characters(text: str) -> str:
 
 def sanitize_search_keyword(raw_keyword: str) -> str:
     trimmed = raw_keyword.strip()[:MAX_SEARCH_LENGTH]
-    # 对所有字符做安全转义后再参与相似匹配，避免特殊字符影响搜索逻辑。
     return escape_all_characters(trimmed)
 
 
@@ -195,6 +244,11 @@ def render_detail(formula: Dict[str, str], is_new: bool = False) -> str:
         </form>
         """
 
+    comments = [] if is_new else list_comments_by_formula(str(formula_id))
+    comment_lines = "\n".join(
+        f"[{comment['created_at']}] {comment['content']}" for comment in comments
+    )
+
     body = f"""
       <section class=\"detail\">
         <header class=\"detail-head\">
@@ -220,7 +274,7 @@ def render_detail(formula: Dict[str, str], is_new: bool = False) -> str:
 
           <aside class=\"comments\">
             <h3>评论区</h3>
-            <div id=\"comment-list\" class=\"comment-list\"></div>
+            <div id=\"comment-list\" class=\"comment-list\">{html.escape(comment_lines) if comment_lines else '暂无评论'}</div>
             <form id=\"comment-form\" class=\"comment-form\">
               <input id=\"comment-input\" type=\"text\" placeholder=\"输入评论内容\" required>
               <button type=\"submit\" class=\"btn primary\">提交</button>
@@ -232,49 +286,47 @@ def render_detail(formula: Dict[str, str], is_new: bool = False) -> str:
       <script>
         (() => {{
           const recipeId = {html.escape(repr(str(formula_id)))};
-          const key = `recipe-comments-${{recipeId}}`;
           const listEl = document.getElementById('comment-list');
           const formEl = document.getElementById('comment-form');
           const inputEl = document.getElementById('comment-input');
+          const endpoint = {html.escape(repr(app_url(f'/formula/{formula_id}/comment')))};
 
-          function loadComments() {{
-            try {{
-              return JSON.parse(localStorage.getItem(key) || '[]');
-            }} catch (e) {{
-              return [];
-            }}
+          if (recipeId === 'new') {{
+            formEl.addEventListener('submit', (event) => event.preventDefault());
+            inputEl.disabled = true;
+            inputEl.placeholder = '请先保存配方后再评论';
+            return;
           }}
 
-          function saveComments(comments) {{
-            localStorage.setItem(key, JSON.stringify(comments));
-          }}
-
-          function renderComments() {{
-            const comments = loadComments();
-            if (!comments.length) {{
-              listEl.innerHTML = '<p class="empty">暂无评论</p>';
+          function appendComment(comment) {{
+            const line = `[${{comment.created_at}}] ${{comment.content}}`;
+            const current = listEl.textContent.trim();
+            if (!current || current === '暂无评论') {{
+              listEl.textContent = line;
               return;
             }}
-            listEl.innerHTML = comments
-              .map(item => `<div class=\"comment-item\"><p>${{item.text}}</p><span>${{item.time}}</span></div>`)
-              .join('');
+            listEl.textContent += `\n${{line}}`;
           }}
 
-          formEl.addEventListener('submit', (event) => {{
+          formEl.addEventListener('submit', async (event) => {{
             event.preventDefault();
             const text = inputEl.value.trim();
             if (!text) return;
-            const comments = loadComments();
-            comments.push({{
-              text,
-              time: new Date().toLocaleString('zh-CN')
-            }});
-            saveComments(comments);
-            inputEl.value = '';
-            renderComments();
-          }});
 
-          renderComments();
+            const params = new URLSearchParams();
+            params.set('content', text);
+
+            const response = await fetch(endpoint, {{
+              method: 'POST',
+              headers: {{ 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }},
+              body: params.toString(),
+            }});
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data.comment) return;
+            appendComment(data.comment);
+            inputEl.value = '';
+          }});
         }})();
       </script>
     """
@@ -364,6 +416,17 @@ class FormulaHandler(BaseHTTPRequestHandler):
             self.redirect(app_url("/"))
             return
 
+        comment_match = re.fullmatch(r"/formula/(\d+)/comment", app_path)
+        if comment_match:
+            formula_id = comment_match.group(1)
+            content = form.get("content", [""])[0]
+            new_comment = add_comment(formula_id, content)
+            if not new_comment:
+                self.send_error(HTTPStatus.BAD_REQUEST, "Comment create failed")
+                return
+            self.json_response({"ok": True, "comment": new_comment})
+            return
+
         self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
 
     def parse_form_data(self) -> Optional[Dict[str, List[str]]]:
@@ -379,6 +442,14 @@ class FormulaHandler(BaseHTTPRequestHandler):
         body = content.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def json_response(self, payload: Dict[str, object], status: HTTPStatus = HTTPStatus.OK) -> None:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

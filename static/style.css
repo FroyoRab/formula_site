@@ -148,23 +148,8 @@ textarea {
   padding: 10px;
   margin-bottom: 10px;
   background: #f9faff;
-}
-
-.comment-item {
-  background: #fff;
-  border: 1px solid #e3e8ff;
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-}
-
-.comment-item p {
-  margin: 0 0 4px;
-}
-
-.comment-item span {
-  color: #7c839d;
-  font-size: 12px;
+  white-space: pre-line;
+  line-height: 1.6;
 }
 
 .comment-form {
