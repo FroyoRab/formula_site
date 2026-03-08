@@ -1,0 +1,173 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #20263a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #f5f7ff;
+}
+
+.site {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.top-bar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+input, textarea, button, .btn {
+  font: inherit;
+}
+
+input, textarea {
+  width: 100%;
+  border: 1px solid #cfd8f5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formula-row {
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #e0e7ff;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.formula-row:hover {
+  border-color: #708bff;
+  box-shadow: 0 8px 20px rgba(63, 91, 196, 0.15);
+}
+
+.formula-main h3 {
+  margin: 0 0 6px;
+}
+
+.formula-main p {
+  margin: 0;
+  color: #59617d;
+}
+
+.time {
+  white-space: nowrap;
+  color: #7f86a1;
+  font-size: 12px;
+}
+
+.btn,
+button {
+  text-decoration: none;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #e8edff;
+  color: #22306a;
+}
+
+.btn.primary,
+button.primary {
+  background: #4f72ff;
+  color: #fff;
+}
+
+.btn.add {
+  background: #1fbe84;
+  color: #fff;
+}
+
+.btn.danger {
+  background: #ed4f65;
+  color: #fff;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.detail-body {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+.editor,
+.comments {
+  background: #fff;
+  border: 1px solid #e0e7ff;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+label {
+  display: block;
+  margin: 8px 0 6px;
+  font-weight: 600;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.actions {
+  margin-top: 12px;
+}
+
+.inline-form {
+  margin-top: 10px;
+}
+
+.comment-list {
+  min-height: 300px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid #e4e9ff;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #f9faff;
+  white-space: pre-line;
+  line-height: 1.6;
+}
+
+.comment-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.empty {
+  color: #76809f;
+  background: #fff;
+  border: 1px dashed #cdd8ff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .detail-body {
+    grid-template-columns: 1fr;
+  }
+}
