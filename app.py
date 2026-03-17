@@ -5,7 +5,6 @@ import html
 import json
 import re
 import urllib.parse
-import unicodedata
 from difflib import SequenceMatcher
 from datetime import datetime
 from http import HTTPStatus
@@ -148,45 +147,19 @@ def delete_comments_by_formula(formula_id: str) -> None:
 MAX_SEARCH_LENGTH = 120
 
 
-def normalize_text(text: str) -> str:
-    # 统一大小写与 Unicode 形态，提升中英文混输时的匹配稳定性。
-    return unicodedata.normalize("NFKC", text).casefold().strip()
+def escape_all_characters(text: str) -> str:
+    return "".join(f"\\u{ord(ch):04x}" for ch in text)
 
 
-def tokenize(text: str) -> List[str]:
-    return [token for token in re.split(r"\s+", normalize_text(text)) if token]
+def sanitize_search_keyword(raw_keyword: str) -> str:
+    trimmed = raw_keyword.strip()[:MAX_SEARCH_LENGTH]
+    return escape_all_characters(trimmed)
 
 
-def similarity_score(query: str, target: str) -> float:
-    if not query or not target:
-        return 0.0
-    return SequenceMatcher(None, query, target).ratio()
-
-
-def rank_formula(query: str, query_tokens: List[str], row: Dict[str, str]) -> tuple[float, float]:
-    name = normalize_text(row.get("name", ""))
-    content = normalize_text(row.get("content", ""))
-
-    name_score = 0.0
-    content_score = 0.0
-
-    if query == name:
-        name_score += 2.0
-    if name.startswith(query):
-        name_score += 1.0
-    if query in name:
-        name_score += 0.8
-    if query in content:
-        content_score += 0.35
-
-    if query_tokens:
-        token_name_hits = sum(1 for token in query_tokens if token in name) / len(query_tokens)
-        token_content_hits = sum(1 for token in query_tokens if token in content) / len(query_tokens)
-        name_score += token_name_hits * 0.8
-        content_score += token_content_hits * 0.3
-
-    name_score += similarity_score(query, name) * 0.7
-    return name_score, content_score
+def similarity_score(query_escaped: str, name_escaped: str) -> float:
+    ratio = SequenceMatcher(None, query_escaped, name_escaped).ratio()
+    contains_bonus = 0.15 if query_escaped in name_escaped else 0.0
+    return min(1.0, ratio + contains_bonus)
 
 
 def search_formulas(keyword: str) -> List[Dict[str, str]]:
@@ -195,18 +168,16 @@ def search_formulas(keyword: str) -> List[Dict[str, str]]:
     if not clean_keyword:
         return rows
 
-    query = normalize_text(clean_keyword)
-    query_tokens = tokenize(query)
-
-    scored: List[tuple[float, float, Dict[str, str]]] = []
+    query_escaped = sanitize_search_keyword(clean_keyword)
+    scored: List[tuple[float, Dict[str, str]]] = []
     for row in rows:
-        name_score, content_score = rank_formula(query, query_tokens, row)
-        # 名称优先：名称分数作为第一排序键；内容分数仅作为次级召回和次排序。
-        if name_score >= 0.45 or content_score >= 0.3:
-            scored.append((name_score, content_score, row))
+        name_escaped = escape_all_characters(row["name"].lower())
+        score = similarity_score(query_escaped.lower(), name_escaped)
+        if score >= 0.35:
+            scored.append((score, row))
 
-    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    return [row for _, _, row in scored]
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [row for _, row in scored]
 
 
 def excerpt(text: str, limit: int = 70) -> str:

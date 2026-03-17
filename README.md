@@ -24,17 +24,3 @@ python app.py
 访问：<http://127.0.0.1:65521/12sagittarius_ghpishbc/>
 
 CSV 文件：`data/formulas.csv`（配方）和 `data/comments.csv`（评论）。
-
-## 批量导入脚本
-仓库提供 `import_formulas.py`，可把“每段一个配方、段落间空行分隔”的文本批量导入到远程站点：
-
-```bash
-# 先检查解析结果
-python import_formulas.py formulas.txt --dry-run
-
-# 直接导入到默认目标 8.153.76.179:65521
-python import_formulas.py formulas.txt
-
-# 自定义目标地址
-python import_formulas.py formulas.txt --host 127.0.0.1:65521 --base-path /12sagittarius_ghpishbc
-```
