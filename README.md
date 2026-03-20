@@ -26,12 +26,12 @@
 
 ```bash
 # 搜索注入风格关键字（应返回 200 页面，不会执行任何 SQL）
-curl -i 'http://127.0.0.1:65521/12sagittarius_ghpishbc/?q=%27%20OR%201%3D1%20--'
+curl -i 'http://127.0.0.1:65521/changeme/?q=%27%20OR%201%3D1%20--'
 
 # 提交包含注入风格文本的配方名（应按普通文本保存）
 curl -i -X POST \
   -d 'name=%27%20OR%201%3D1%20--&content=test' \
-  'http://127.0.0.1:65521/12sagittarius_ghpishbc/formula/create'
+  'http://127.0.0.1:65521/changeme/formula/create'
 ```
 
 ## 启动
