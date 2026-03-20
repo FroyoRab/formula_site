@@ -20,7 +20,7 @@ COMMENTS_FILE = DATA_DIR / "comments.csv"
 COMMENT_FIELDNAMES = ["id", "formula_id", "content", "created_at"]
 HOST = "0.0.0.0"
 PORT = 65521
-BASE_PATH = "/12sagittarius_ghpishbc"
+BASE_PATH = "/changeme"
 
 
 def app_url(path: str) -> str:
