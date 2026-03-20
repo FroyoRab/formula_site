@@ -39,7 +39,7 @@ curl -i -X POST \
 python app.py
 ```
 
-访问：<http://127.0.0.1:65521/12sagittarius_ghpishbc/>
+访问：<http://127.0.0.1:65521/changeme/>
 
 CSV 文件：`data/formulas.csv`（配方）和 `data/comments.csv`（评论）。
 
